@@ -43,7 +43,7 @@ public partial class AppViewModel : ObservableObject
     /// 使用 ObservableCollection 以支持 DataGrid 的自动绑定和实时更新。
     /// 新消息插入到列表头部（最新在前），超过 MaxMessages（100）条时自动淘汰旧消息。
     /// </summary>
-    private ObservableCollection<MqttMessageRecord> Messages { get; } = new();
+    public ObservableCollection<MqttMessageRecord> Messages { get; } = new();
 
     /// <summary>状态栏连接状态文字，例如 "未连接" / "已连接" / "正在连接..."</summary>
     [ObservableProperty] private string _statusText = "未连接";
@@ -293,8 +293,6 @@ public partial class AppViewModel : ObservableObject
     /// </summary>
     private void OnMessageReceived(object? sender, MqttMessageReceivedEventArgs e)
     {
-        // 必须在 UI 线程操作，因为 Messages 是 ObservableCollection，
-        // 它要求所有变更都在创建它的线程（即 Dispatcher 线程）上执行
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             Messages.Insert(0, new MqttMessageRecord
