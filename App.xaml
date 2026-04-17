@@ -7,12 +7,15 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <!-- 合并 WPF-UI 控件资源字典，提供 ui: 命名下的控件样式 -->
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- 布尔取反转换器，用于按钮 IsEnabled 反向绑定 -->
             <local:InverseBoolConverter x:Key="InverseBoolConverter"/>
 
-            <!-- 主题色资源（跟随系统/手动切换） -->
+            <!-- ===== 默认主题色资源（浅色，App.ApplyTheme() 运行时替换这些值） ===== -->
+            <!-- 这些资源通过 DynamicResource 引用，运行时替换实现主题切换 -->
             <SolidColorBrush x:Key="ThemeWindowBg" Color="#FAFAFA"/>
             <SolidColorBrush x:Key="ThemeSidebarBg" Color="#F7F7F7"/>
             <SolidColorBrush x:Key="ThemeCardBg" Color="#FFFFFF"/>

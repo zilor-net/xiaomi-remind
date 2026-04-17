@@ -1,3 +1,21 @@
+<!--
+  Xiaomi.Remind - 小米 MQTT 消息提醒桌面应用
+
+  技术栈：
+    - .NET 10.0 + WPF（Windows Presentation Foundation）
+    - MVVM 模式（CommunityToolkit.Mvvm）
+    - MQTTnet（MQTT 客户端）
+    - WPF-UI（UI 组件库）
+    - H.NotifyIcon（系统托盘）
+
+  功能：
+    1. 连接 MQTT Broker，订阅指定主题接收消息
+    2. 在 DataGrid 中展示消息记录（时间/主题/内容）
+    3. 收到消息时弹出系统托盘通知
+    4. 可选：收到消息时自动关闭指定进程（如抖音、微信）
+    5. 支持亮色/深色主题切换（跟随系统）
+    6. 支持开机自启动
+-->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
