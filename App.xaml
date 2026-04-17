@@ -1,0 +1,49 @@
+<Application x:Class="Xiaomi.Remind.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:local="clr-namespace:Xiaomi.Remind"
+             DispatcherUnhandledException="OnDispatcherUnhandledException">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemesDictionary Theme="Light" />
+                <ui:ControlsDictionary />
+            </ResourceDictionary.MergedDictionaries>
+
+            <local:InverseBoolConverter x:Key="InverseBoolConverter"/>
+
+            <!-- 主题色资源（跟随系统/手动切换） -->
+            <SolidColorBrush x:Key="ThemeWindowBg" Color="#FAFAFA"/>
+            <SolidColorBrush x:Key="ThemeSidebarBg" Color="#F7F7F7"/>
+            <SolidColorBrush x:Key="ThemeCardBg" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="ThemeBorderLight" Color="#E8E8E8"/>
+            <SolidColorBrush x:Key="ThemeBorderLighter" Color="#F0F0F0"/>
+            <SolidColorBrush x:Key="ThemeTextPrimary" Color="#202020"/>
+            <SolidColorBrush x:Key="ThemeTextSecondary" Color="#666666"/>
+            <SolidColorBrush x:Key="ThemeTextTertiary" Color="#999999"/>
+            <SolidColorBrush x:Key="ThemeTextDesc" Color="#888888"/>
+            <SolidColorBrush x:Key="ThemeTextSubtle" Color="#555555"/>
+            <SolidColorBrush x:Key="ThemeDataGridHeaderBorder" Color="#E0E0E0"/>
+            <SolidColorBrush x:Key="ThemeDataGridAltRow" Color="#FAFAFA"/>
+            <SolidColorBrush x:Key="ThemeDataGridCellFg" Color="#333333"/>
+            <SolidColorBrush x:Key="ThemeDataGridHeaderFg" Color="#333333"/>
+            <SolidColorBrush x:Key="ThemeDataGridSelBg" Color="#E5F1FB"/>
+            <SolidColorBrush x:Key="ThemeNavHover" Color="#EAEAEA"/>
+            <SolidColorBrush x:Key="ThemeNavText" Color="#555555"/>
+            <SolidColorBrush x:Key="ThemeStatusBarBg" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="ThemeInputBg" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="ThemeInputBorder" Color="#D0D0D0"/>
+            <SolidColorBrush x:Key="ThemeInputFg" Color="#333333"/>
+            <SolidColorBrush x:Key="ThemeToggleThemeIcon" Color="#555555"/>
+            <SolidColorBrush x:Key="ThemeNavActiveBg" Color="#E8F0FE"/>
+            <SolidColorBrush x:Key="ThemeNavActiveFg" Color="#0078D4"/>
+            <SolidColorBrush x:Key="ThemeBtnBg" Color="#F9F9F9"/>
+            <SolidColorBrush x:Key="ThemeBtnHover" Color="#F0F0F0"/>
+            <SolidColorBrush x:Key="ThemeBtnPressed" Color="#E5E5E5"/>
+            <SolidColorBrush x:Key="ThemeBtnDisabledBg" Color="#F3F3F3"/>
+            <SolidColorBrush x:Key="ThemeBtnDisabledFg" Color="#A0A0A0"/>
+            <SolidColorBrush x:Key="ThemeBtnDisabledBorder" Color="#E0E0E0"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

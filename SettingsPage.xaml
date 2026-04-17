@@ -1,0 +1,129 @@
+<UserControl x:Class="Xiaomi.Remind.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType"
+             SnapsToDevicePixels="True">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,4,20">
+        <StackPanel>
+
+            <!-- ===== 自动关闭进程 ===== -->
+            <Border Style="{DynamicResource SettingCard}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="自动关闭进程" Style="{DynamicResource SettingTitle}"/>
+                            <TextBlock Text="收到 MQTT 消息时，自动关闭下方列表中的进程窗口" Style="{DynamicResource SettingDesc}"/>
+                        </StackPanel>
+
+                        <ui:ToggleSwitch Grid.Column="1"
+                                         IsChecked="{Binding CloseProcessesOnMessage}"
+                                         VerticalAlignment="Center" Margin="16,0,0,0"/>
+                    </Grid>
+
+                    <Separator Margin="0,16,0,12" BorderBrush="{DynamicResource ThemeBorderLighter}"/>
+
+                    <TextBlock Text="进程列表" Style="{DynamicResource SettingTitle}" Margin="0,0,0,4"/>
+                    <TextBlock Text="每行一个进程名，保存后即时生效" Style="{DynamicResource SettingDesc}"/>
+
+                    <TextBox Style="{DynamicResource SettingInput}"
+                             Margin="0,8,0,12"
+                             Text="{Binding ProcessListText, UpdateSourceTrigger=PropertyChanged}"
+                             TextWrapping="Wrap" AcceptsReturn="True"
+                             MinHeight="100" VerticalScrollBarVisibility="Auto"/>
+
+                    <Button Content="保存进程列表" Style="{DynamicResource SaveBtn}"
+                            Command="{Binding SaveProcessListCommand}"
+                            HorizontalAlignment="Left"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== MQTT 连接设置 ===== -->
+            <Border Style="{DynamicResource SettingCard}">
+                <StackPanel>
+                    <TextBlock Text="MQTT 连接" Style="{DynamicResource SettingTitle}"/>
+                    <TextBlock Text="修改连接信息后保存，再点击连接即可生效" Style="{DynamicResource SettingDesc}"/>
+
+                    <Grid Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Broker" FontSize="13"
+                                   Foreground="{DynamicResource ThemeTextSubtle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,8"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Style="{DynamicResource SettingInput}"
+                                 Text="{Binding MqttBroker, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,8"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="端口" FontSize="13"
+                                   Foreground="{DynamicResource ThemeTextSubtle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,8"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Style="{DynamicResource SettingInput}"
+                                 Text="{Binding MqttPort, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,8"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="客户端ID" FontSize="13"
+                                   Foreground="{DynamicResource ThemeTextSubtle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,8"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Style="{DynamicResource SettingInput}"
+                                 Text="{Binding MqttClientId, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,8"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="用户名" FontSize="13"
+                                   Foreground="{DynamicResource ThemeTextSubtle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,8"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Style="{DynamicResource SettingInput}"
+                                 Text="{Binding MqttUserName, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,8"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="密码" FontSize="13"
+                                   Foreground="{DynamicResource ThemeTextSubtle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,8"/>
+                        <TextBox Grid.Row="4" Grid.Column="1" Style="{DynamicResource SettingInput}"
+                                 Text="{Binding MqttPassword, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,8"/>
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="订阅主题" FontSize="13"
+                                   Foreground="{DynamicResource ThemeTextSubtle}"
+                                   VerticalAlignment="Center" Margin="0,0,12,8"/>
+                        <TextBox Grid.Row="5" Grid.Column="1" Style="{DynamicResource SettingInput}"
+                                 Text="{Binding MqttTopics, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,8"/>
+                    </Grid>
+
+                    <Grid Margin="0,16,0,0">
+                        <Button Content="保存连接信息" Style="{DynamicResource SaveBtn}"
+                                Command="{Binding SaveMqttConfigCommand}"
+                                HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="连接" Style="{DynamicResource PrimaryBtn}"
+                                    Command="{Binding ConnectCommand}"
+                                    IsEnabled="{Binding IsConnected, Converter={StaticResource InverseBoolConverter}}"
+                                    Margin="0,0,8,0"/>
+                            <Button Content="断开" Style="{DynamicResource DangerBtn}"
+                                    Command="{Binding UnsubscribeCommand}"
+                                    IsEnabled="{Binding IsConnected}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
