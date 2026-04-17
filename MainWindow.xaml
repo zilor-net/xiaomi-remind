@@ -5,7 +5,6 @@
         Title="Xiaomi Remind"
         Width="1100" Height="720"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="SingleBorderWindow"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
         SnapsToDevicePixels="True"

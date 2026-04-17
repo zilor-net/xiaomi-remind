@@ -5,7 +5,6 @@ using System.Windows.Media;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Win32;
 using Wpf.Ui.Appearance;
-using Wpf.Ui.Controls;
 using Xiaomi.Remind.Services;
 using Application = System.Windows.Application;
 using Color = System.Windows.Media.Color;
@@ -93,9 +92,6 @@ public partial class App : Application
             setBrush("ThemeBtnDisabledBg", Color.FromRgb(45, 45, 45));
             setBrush("ThemeBtnDisabledFg", Color.FromRgb(100, 100, 100));
             setBrush("ThemeBtnDisabledBorder", Color.FromRgb(55, 55, 58));
-
-            // 同步 WPF-UI 控件主题
-            ApplicationThemeManager.Apply(ApplicationTheme.Dark, WindowBackdropType.None);
         }
         else
         {
@@ -129,8 +125,6 @@ public partial class App : Application
             setBrush("ThemeBtnDisabledBg", Color.FromRgb(243, 243, 243));
             setBrush("ThemeBtnDisabledFg", Color.FromRgb(160, 160, 160));
             setBrush("ThemeBtnDisabledBorder", Color.FromRgb(224, 224, 224));
-
-            ApplicationThemeManager.Apply(ApplicationTheme.Light, WindowBackdropType.None);
         }
     }
 
