@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Windows;
-using Xiaomi.Remind;
 using Application = System.Windows.Application;
 
 namespace Xiaomi.Remind;
@@ -10,17 +9,19 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
         Loaded += OnLoaded;
+    }
+
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (DataContext is AppViewModel vm)
+            vm.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         NavigateToHome();
-
-        if (DataContext is AppViewModel vm)
-        {
-            vm.PropertyChanged += OnViewModelPropertyChanged;
-        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

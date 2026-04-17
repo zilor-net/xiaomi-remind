@@ -1,8 +1,4 @@
 using MQTTnet;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Xiaomi.Remind.Services;
 
@@ -26,6 +22,7 @@ public class MqttClientService : IDisposable
     /// 已订阅的主题列表，用于记录当前订阅状态。
     /// </summary>
     private readonly List<string> _topics = new();
+    private readonly object _topicsLock = new();
 
     /// <summary>
     /// 连接选项，用于断线重连时复用。
@@ -67,6 +64,14 @@ public class MqttClientService : IDisposable
     public event EventHandler? Disconnected;
 
     /// <summary>
+    /// 重连成功事件。
+    /// 当自动重连成功时触发，通知 UI 层更新连接状态。
+    /// </summary>
+    public event EventHandler? Reconnected;
+
+    private CancellationTokenSource? _reconnectCts;
+
+    /// <summary>
     /// 连接到 MQTT Broker。
     ///
     /// 参数说明：
@@ -102,9 +107,11 @@ public class MqttClientService : IDisposable
         _connectOptions = options.Build();
 
         // 注册消息接收回调（异步方法，收到消息时自动调用）
+        _mqttClient.ApplicationMessageReceivedAsync -= OnMessageReceivedAsync;
         _mqttClient.ApplicationMessageReceivedAsync += OnMessageReceivedAsync;
 
         // 注册连接断开回调，用于检测 Broker 宕机/网络中断
+        _mqttClient.DisconnectedAsync -= OnDisconnectedAsync;
         _mqttClient.DisconnectedAsync += OnDisconnectedAsync;
 
         // 发起异步连接
@@ -120,13 +127,22 @@ public class MqttClientService : IDisposable
         // 触发断开事件，通知 UI 层更新状态
         Disconnected?.Invoke(this, EventArgs.Empty);
 
+        // 取消之前的重连任务
+        _reconnectCts?.Cancel();
+        _reconnectCts?.Dispose();
+        _reconnectCts = new CancellationTokenSource();
+
         // 防止并发重连
         if (Interlocked.Exchange(ref _reconnecting, 1) != 0)
             return;
 
         try
         {
-            await ReconnectAsync();
+            await ReconnectAsync(_reconnectCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // 取消是正常行为，忽略
         }
         finally
         {
@@ -139,7 +155,7 @@ public class MqttClientService : IDisposable
     /// 使用指数退避策略（2s → 4s → 8s → 16s → 30s），最多重试到 30 秒间隔。
     /// 重连成功后自动重新订阅之前的主题。
     /// </summary>
-    private async Task ReconnectAsync()
+    private async Task ReconnectAsync(CancellationToken ct)
     {
         var delay = TimeSpan.FromSeconds(2);
         var maxDelay = TimeSpan.FromSeconds(30);
@@ -148,17 +164,25 @@ public class MqttClientService : IDisposable
         while (!_mqttClient.IsConnected)
         {
             attempt++;
-            await Task.Delay(delay);
+            await Task.Delay(delay, ct);
 
             try
             {
                 if (_connectOptions != null)
-                    await _mqttClient.ConnectAsync(_connectOptions, CancellationToken.None);
+                    await _mqttClient.ConnectAsync(_connectOptions, ct);
 
                 // 重连成功后重新订阅
-                if (_mqttClient.IsConnected && _topics.Count > 0)
+                if (_mqttClient.IsConnected)
                 {
-                    await SubscribeAsync(_topics);
+                    List<string> topicsSnapshot;
+                    lock (_topicsLock)
+                    {
+                        topicsSnapshot = new List<string>(_topics);
+                    }
+                    if (topicsSnapshot.Count > 0)
+                        await SubscribeAsync(topicsSnapshot);
+
+                    Reconnected?.Invoke(this, EventArgs.Empty);
                 }
 
                 return; // 重连成功，退出循环
@@ -183,8 +207,11 @@ public class MqttClientService : IDisposable
     /// </summary>
     public async Task SubscribeAsync(IEnumerable<string> topics)
     {
-        _topics.Clear();
-        _topics.AddRange(topics);
+        lock (_topicsLock)
+        {
+            _topics.Clear();
+            _topics.AddRange(topics);
+        }
 
         // 构建订阅选项
         var subscribeOptions = new MqttClientSubscribeOptionsBuilder();
@@ -238,6 +265,8 @@ public class MqttClientService : IDisposable
     /// </summary>
     public void Dispose()
     {
+        _reconnectCts?.Cancel();
+        _reconnectCts?.Dispose();
         _mqttClient.Dispose();
     }
 }

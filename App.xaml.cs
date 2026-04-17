@@ -1,10 +1,6 @@
-using System;
 using System.Diagnostics;
-using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows;
-using System.Windows.Forms;
 using System.Windows.Media;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Win32;
@@ -233,14 +229,15 @@ public partial class App : Application
 
     private void OnMessageArrived(object? sender, MqttMessageReceivedEventArgs e)
     {
-        Dispatcher.BeginInvoke(() =>
+        // 在后台线程执行耗时操作，避免阻塞 UI
+        Task.Run(() =>
         {
             if (_viewModel?.CloseProcessesOnMessage == true)
                 DesktopMinimizer.CloseWindowsByProcess(_viewModel.CloseProcessNames);
-
-            var payload = e.Payload.Length > 100 ? e.Payload[..100] + "..." : e.Payload;
-            _notifyIcon?.ShowBalloonTip(5000, "新消息提醒", $"{e.Topic}\n{payload}", ToolTipIcon.Info);
         });
+
+        var payload = e.Payload.Length > 100 ? e.Payload[..100] + "..." : e.Payload;
+        _notifyIcon?.ShowBalloonTip(5000, "新消息提醒", $"{e.Topic}\n{payload}", ToolTipIcon.Info);
     }
 
     private async Task ConnectAsync()

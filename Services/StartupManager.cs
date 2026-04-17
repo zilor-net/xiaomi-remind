@@ -1,4 +1,3 @@
-using System;
 using Microsoft.Win32;
 
 namespace Xiaomi.Remind.Services;

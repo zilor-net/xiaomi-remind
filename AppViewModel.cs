@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Windows;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,7 +19,7 @@ public partial class AppViewModel : ObservableObject
     private readonly IConfiguration _configuration;
     private readonly string _configPath;
 
-    public ObservableCollection<MqttMessageRecord> Messages { get; } = new();
+    private ObservableCollection<MqttMessageRecord> Messages { get; } = new();
 
     [ObservableProperty] private string _statusText = "未连接";
     [ObservableProperty] private string _statusInfo = "";
@@ -57,13 +53,32 @@ public partial class AppViewModel : ObservableObject
         try
         {
             var json = File.ReadAllText(_configPath);
-            var newValue = value ? "true" : "false";
-            var pattern = @"(""\s*Enabled\s*""\s*:\s*)(true|false)";
-            var newJson = System.Text.RegularExpressions.Regex.Replace(json, pattern, $"$1{newValue}");
-            if (newJson != json)
-                File.WriteAllText(_configPath, newJson);
+            var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var dict = new Dictionary<string, object>();
+            if (root.TryGetProperty("Mqtt", out var mqtt))
+                dict["Mqtt"] = mqtt.Clone();
+            dict["UI"] = new Dictionary<string, object>
+            {
+                ["CloseProcessesOnMessage"] = new Dictionary<string, object>
+                {
+                    ["Enabled"] = value,
+                    ["Processes"] = root.TryGetProperty("UI", out var uiSection) &&
+                        uiSection.TryGetProperty("CloseProcessesOnMessage", out var cpm) &&
+                        cpm.TryGetProperty("Processes", out var procs)
+                        ? procs.Clone()
+                        : new List<string>()
+                }
+            };
+
+            var options = new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+            File.WriteAllText(_configPath, JsonSerializer.Serialize(dict, options));
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     #endregion
@@ -81,7 +96,7 @@ public partial class AppViewModel : ObservableObject
     private void LoadConfig()
     {
         MqttBroker = _configuration["Mqtt:Broker"] ?? "localhost";
-        MqttPort = _configuration["Mqtt:Port"]?.ToString() ?? "1883";
+        MqttPort = _configuration["Mqtt:Port"] ?? "1883";
         MqttClientId = _configuration["Mqtt:ClientId"] ?? "XiaomiRemind";
         MqttUserName = _configuration["Mqtt:UserName"] ?? "";
         MqttPassword = _configuration["Mqtt:Password"] ?? "";
@@ -100,22 +115,37 @@ public partial class AppViewModel : ObservableObject
         try
         {
             var json = File.ReadAllText(_configPath);
+            var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
             var lines = ProcessListText.Split('\n')
                 .Select(l => l.Trim())
                 .Where(l => !string.IsNullOrEmpty(l))
                 .Distinct()
                 .ToList();
-
             _closeProcessNames = lines;
 
-            var procJson = JsonSerializer.Serialize(lines);
-            var pattern = @"(\s*""Processes""\s*:\s*)\[.*?\]";
-            var newJson = System.Text.RegularExpressions.Regex.Replace(json, pattern, $"$1{procJson}",
-                System.Text.RegularExpressions.RegexOptions.Singleline);
-            if (newJson != json)
-                File.WriteAllText(_configPath, newJson);
+            var dict = new Dictionary<string, object>();
+            if (root.TryGetProperty("Mqtt", out var mqtt))
+                dict["Mqtt"] = mqtt.Clone();
+            dict["UI"] = new Dictionary<string, object>
+            {
+                ["CloseProcessesOnMessage"] = new Dictionary<string, object>
+                {
+                    ["Enabled"] = !root.TryGetProperty("UI", out var ui) ||
+                                  !ui.TryGetProperty("CloseProcessesOnMessage", out var cpm) ||
+                                  !cpm.TryGetProperty("Enabled", out var enabled) || enabled.GetBoolean(),
+                    ["Processes"] = lines
+                }
+            };
+
+            var options = new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+            File.WriteAllText(_configPath, JsonSerializer.Serialize(dict, options));
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     /// <summary>将 MQTT 连接信息写回配置文件</summary>
@@ -127,38 +157,31 @@ public partial class AppViewModel : ObservableObject
             var json = File.ReadAllText(_configPath);
             var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-            var obj = new Dictionary<string, object>();
 
-            // 保留原有 Mqtt 结构
-            if (root.TryGetProperty("Mqtt", out var mqttSection))
+            var mqttDict = new Dictionary<string, object>
             {
-                foreach (var prop in mqttSection.EnumerateObject())
-                    obj[prop.Name] = prop.Value.Clone();
-            }
+                ["Broker"] = MqttBroker,
+                ["ClientId"] = MqttClientId,
+                ["UserName"] = MqttUserName,
+                ["Password"] = MqttPassword,
+                ["Topics"] = MqttTopics
+            };
+            if (int.TryParse(MqttPort, out var port)) mqttDict["Port"] = port;
 
-            obj["Broker"] = MqttBroker;
-            if (int.TryParse(MqttPort, out var port)) obj["Port"] = port;
-            obj["ClientId"] = MqttClientId;
-            obj["UserName"] = MqttUserName;
-            obj["Password"] = MqttPassword;
-            obj["Topics"] = MqttTopics;
-
-            // 保留 UI 部分
-            var uiJson = "";
+            var dict = new Dictionary<string, object>
+            {
+                ["Mqtt"] = mqttDict
+            };
             if (root.TryGetProperty("UI", out var uiSection))
-                uiJson = uiSection.GetRawText();
+                dict["UI"] = uiSection.Clone();
 
             var options = new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-            var newDoc = new Dictionary<string, object>
-            {
-                ["Mqtt"] = obj,
-            };
-            // 手动构建 JSON 以保留 UI 部分
-            var mqttJson = JsonSerializer.Serialize(obj, options);
-            var finalJson = $"{{\n  \"Mqtt\": {mqttJson},\n  \"UI\": {uiJson}\n}}";
-            File.WriteAllText(_configPath, finalJson);
+            File.WriteAllText(_configPath, JsonSerializer.Serialize(dict, options));
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     #endregion
@@ -179,6 +202,7 @@ public partial class AppViewModel : ObservableObject
 
         _mqttService.MessageReceived += OnMessageReceived;
         _mqttService.Disconnected += OnDisconnected;
+        _mqttService.Reconnected += OnReconnected;
     }
 
     private const int MaxMessages = 100;
@@ -210,12 +234,23 @@ public partial class AppViewModel : ObservableObject
         });
     }
 
+    private void OnReconnected(object? sender, EventArgs e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            IsSubscribed = true;
+            StatusText = "已连接";
+            StatusInfo = $"{MqttBroker}:{MqttPort}  |  {MqttTopics}";
+            IsConnected = true;
+        });
+    }
+
     #endregion
 
     #region 命令
 
     [RelayCommand]
-    public async Task ConnectAsync()
+    private async Task ConnectAsync()
     {
         try
         {
@@ -226,17 +261,18 @@ public partial class AppViewModel : ObservableObject
             }
 
             StatusText = "正在连接...";
-
             var broker = _configuration["Mqtt:Broker"] ?? "localhost";
-            var port = int.Parse(_configuration["Mqtt:Port"] ?? "1883");
+            if (!int.TryParse(_configuration["Mqtt:Port"], out var port) || port <= 0 || port > 65535)
+            {
+                StatusText = "连接失败: 端口号无效";
+                return;
+            }
             var clientId = _configuration["Mqtt:ClientId"] ?? "XiaomiRemind";
             var userName = _configuration["Mqtt:UserName"];
             var password = _configuration["Mqtt:Password"];
 
             await _mqttService.ConnectAsync(broker, port, clientId, userName, password);
             await SubscribeAsync();
-            StatusText = "已连接";
-            IsConnected = true;
         }
         catch (Exception ex)
         {
@@ -246,7 +282,7 @@ public partial class AppViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task SubscribeAsync()
+    private async Task SubscribeAsync()
     {
         try
         {
@@ -269,7 +305,7 @@ public partial class AppViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task UnsubscribeAsync()
+    private async Task DisconnectAsync()
     {
         try
         {
@@ -288,13 +324,13 @@ public partial class AppViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void ClearMessages()
+    private void ClearMessages()
     {
         Messages.Clear();
     }
 
     [RelayCommand]
-    public void Navigate(string page)
+    private void Navigate(string page)
     {
         SelectedPage = page switch
         {
@@ -305,7 +341,7 @@ public partial class AppViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void ToggleTheme()
+    private void ToggleTheme()
     {
         IsDarkMode = !IsDarkMode;
     }
@@ -315,9 +351,9 @@ public partial class AppViewModel : ObservableObject
 
 public sealed class InverseBoolConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        => value is bool b && !b;
+    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        => value is bool and false;
 
-    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        => value is bool b && !b;
+    public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        => throw new NotImplementedException();
 }
