@@ -64,6 +64,12 @@ public class MqttClientService : IDisposable
     public event EventHandler? Disconnected;
 
     /// <summary>
+    /// 重连进行中事件。
+    /// 每次重试连接时触发，携带已尝试的秒数，用于 UI 显示重连计时。
+    /// </summary>
+    public event EventHandler<int>? Reconnecting;
+
+    /// <summary>
     /// 重连成功事件。
     /// 当自动重连成功时触发，通知 UI 层更新连接状态。
     /// </summary>
@@ -154,16 +160,23 @@ public class MqttClientService : IDisposable
     /// 自动重连逻辑。
     /// 使用指数退避策略（2s → 4s → 8s → 16s → 30s），最多重试到 30 秒间隔。
     /// 重连成功后自动重新订阅之前的主题。
+    /// 每次重试前触发 Reconnecting 事件，传递已消耗秒数。
     /// </summary>
     private async Task ReconnectAsync(CancellationToken ct)
     {
         var delay = TimeSpan.FromSeconds(2);
         var maxDelay = TimeSpan.FromSeconds(30);
         var attempt = 0;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        while (!_mqttClient.IsConnected)
+        while (true)
         {
+            ct.ThrowIfCancellationRequested();
             attempt++;
+
+            // 通知 UI 层当前正在重连
+            Reconnecting?.Invoke(this, (int)sw.Elapsed.TotalSeconds);
+
             await Task.Delay(delay, ct);
 
             try
@@ -183,16 +196,20 @@ public class MqttClientService : IDisposable
                         await SubscribeAsync(topicsSnapshot);
 
                     Reconnected?.Invoke(this, EventArgs.Empty);
+                    return; // 全部成功，退出循环
                 }
-
-                return; // 重连成功，退出循环
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch
             {
-                // 重连失败，指数退避
-                delay = TimeSpan.FromMilliseconds(
-                    Math.Min(delay.TotalMilliseconds * 2, maxDelay.TotalMilliseconds));
+                // 重连或订阅失败，指数退避后重试
             }
+
+            delay = TimeSpan.FromMilliseconds(
+                Math.Min(delay.TotalMilliseconds * 2, maxDelay.TotalMilliseconds));
         }
     }
 
@@ -231,7 +248,12 @@ public class MqttClientService : IDisposable
     /// </summary>
     public async Task DisconnectAsync()
     {
-        // 取消自动重连：清空连接选项，重连循环检测到 _connectOptions == null 时不会重连
+        // 取消自动重连任务（必须在清空 _connectOptions 之前）
+        _reconnectCts?.Cancel();
+        _reconnectCts?.Dispose();
+        _reconnectCts = null;
+
+        // 清空连接选项，防止重连循环内读取
         _connectOptions = null;
 
         // 取消消息和断开回调的注册，避免手动断开触发回调

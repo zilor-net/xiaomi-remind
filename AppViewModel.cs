@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using System.Windows.Data;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Configuration;
@@ -62,6 +63,12 @@ public partial class AppViewModel : ObservableObject
 
     /// <summary>当前选中的导航页面</summary>
     [ObservableProperty] private AppPage _selectedPage = AppPage.Home;
+
+    /// <summary>用于重连计时的 Dispatcher 计时器</summary>
+    private DispatcherTimer? _reconnectTimer;
+
+    /// <summary>断开连接的时间点，用于计算重连耗时</summary>
+    private DateTime _reconnectStartTime;
 
     #region 关闭进程设置
 
@@ -281,6 +288,7 @@ public partial class AppViewModel : ObservableObject
         _mqttService.MessageReceived += OnMessageReceived;   // 收到消息
         _mqttService.Disconnected += OnDisconnected;          // 连接断开
         _mqttService.Reconnected += OnReconnected;            // 重连成功
+        _mqttService.Reconnecting += OnReconnecting;          // 重连进行中
     }
 
     /// <summary>消息列表最大保留条数，超过此数量时淘汰最旧的记录</summary>
@@ -309,32 +317,74 @@ public partial class AppViewModel : ObservableObject
 
     /// <summary>
     /// MQTT 连接断开回调。
-    /// 更新状态文字为"正在重连"，清除订阅状态和连接信息。
+    /// 更新状态文字为"正在重连"，清除订阅状态和连接信息，启动重连计时器。
     /// </summary>
     private void OnDisconnected(object? sender, EventArgs e)
     {
+        _reconnectStartTime = DateTime.Now;
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             StatusText = "连接已断开，正在重连...";
             IsSubscribed = false;
             StatusInfo = "";
             IsConnected = false;
+            StartReconnectTimer();
+        });
+    }
+
+    /// <summary>
+    /// MQTT 重连进行中回调。
+    /// 更新状态栏显示已重连的秒数。
+    /// </summary>
+    private void OnReconnecting(object? sender, int elapsedSeconds)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            StatusText = $"连接已断开，正在重连 ({elapsedSeconds}s)...";
         });
     }
 
     /// <summary>
     /// MQTT 重连成功回调。
-    /// 恢复状态文字和连接信息，标记为已订阅。
+    /// 恢复状态文字和连接信息，停止重连计时器。
     /// </summary>
     private void OnReconnected(object? sender, EventArgs e)
     {
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
+            StopReconnectTimer();
             IsSubscribed = true;
             StatusText = "已连接";
             StatusInfo = $"{MqttBroker}:{MqttPort}  |  {MqttTopics}";
             IsConnected = true;
         });
+    }
+
+    /// <summary>
+    /// 启动重连计时器，每秒更新一次状态栏显示已重连的秒数。
+    /// </summary>
+    private void StartReconnectTimer()
+    {
+        StopReconnectTimer();
+        _reconnectTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _reconnectTimer.Tick += (s, e) =>
+        {
+            var elapsed = (int)(DateTime.Now - _reconnectStartTime).TotalSeconds;
+            StatusText = $"连接已断开，正在重连 ({elapsed}s)...";
+        };
+        _reconnectTimer.Start();
+    }
+
+    /// <summary>
+    /// 停止重连计时器并释放资源。
+    /// </summary>
+    private void StopReconnectTimer()
+    {
+        _reconnectTimer?.Stop();
+        _reconnectTimer = null;
     }
 
     #endregion
@@ -419,6 +469,7 @@ public partial class AppViewModel : ObservableObject
             if (_mqttService.IsConnected)
                 await _mqttService.DisconnectAsync();
 
+            StopReconnectTimer();
             IsSubscribed = false;
             StatusText = "已断开";
             StatusInfo = "";
